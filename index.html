@@ -74,6 +74,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, canvas:focus-v
 }
 .slots label:has(input:checked) { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
 .slots i { width: 100%; height: 34px; border-radius: 8px; border: 1px solid #0003; display: block; }
+.backs i { height: 20px; }
+.backs label { font-size: 0.8rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid #0004; }
 .field { display: flex; flex-direction: column; gap: 2px; }
@@ -180,6 +182,11 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 28px; color: var(--m
         <div class="chips" id="chips" aria-labelledby="chipLab"></div>
       </div>
       <div class="row"><button type="button" id="paintReset">Start colouring again</button></div>
+      <div class="field">
+        <span style="font-weight:600" id="backLab">Colour of the back</span>
+        <div class="slots backs" id="backs" role="radiogroup" aria-labelledby="backLab"></div>
+      </div>
+      <p class="tip">Your picture is the top 1 mm. Everything behind it prints in the back colour.</p>
       <p class="tip">Colours 1 to 4 are filament slots 1 to 4 on the printer.</p>
     </section>
 
@@ -249,7 +256,7 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 28px; color: var(--m
       </div>
     </div>
     <div id="saved" role="status"></div>
-    <p class="tip">Each square in the Top view is 10 mm. The file is saved face down, so the coloured side prints on the plate.</p>
+    <p class="tip">Each square in the Top view is 10 mm. The file is saved face down, so your picture prints on the plate.</p>
   </div>
 </main>
 
@@ -258,11 +265,11 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 28px; color: var(--m
 <script id="engine">
 /* Geometry engine: no page access, so it can be tested on its own. */
 const Engine = (() => {
-  const N = 150;       // cells along the longest side of the keychain body
-  const P = 50;        // spare cells around the body for a hole loop
-  const VIEW = 45;     // how many of those the top view shows
+  const N = 200;       // cells along the longest side of the keychain body
+  const P = 60;        // spare cells around the body for a hole loop
+  const VIEW = 54;     // how many of those the top view shows
   const RING_MM = 2;   // wall of plastic kept around the hole
-  const FACE_MM = 0.6; // depth of the coloured face (three 0.2 mm layers)
+  const FACE_MM = 1;   // depth of the coloured picture on the face
 
   // Darkness map: 1 = clean paper, 0 = darkest ink. Evens out shadows on photos of paper.
   function analyze(rgba, w, h) {
@@ -473,7 +480,7 @@ const Engine = (() => {
   }
 
   // Add the hole and its loop, apply the paint, and scale so the longest side is sizeMM.
-  // paint = { regCol: slot per region, loopSlot }. Result col[] holds 0 or a colour slot 1-4.
+  // paint = { regCol: slot per region, loopSlot, back: slot for everything behind the picture }. Result col[] holds 0 or a colour slot 1-4.
   function layout(body, hole, paint, sizeMM) {
     const out = { empty: body.empty, hole: null, pieces: 0, body, cell: sizeMM / N, used: [], back: 1 };
     if (body.empty) return out;
@@ -518,10 +525,45 @@ const Engine = (() => {
     const cc = components(solid, W, H, 4);
     for (let k = 1; k <= cc.count; k++) if (cc.areas[k] >= 4) out.pieces++;
     cell = sizeMM / Math.max(x1 - x0 + 1, y1 - y0 + 1);   // exact: longest side is the size asked for
-    for (let k = 1; k <= 4; k++) { if (area[k]) out.used.push(k); if (area[k] > area[out.back]) out.back = k; }
+    out.back = paint.back;
+    for (let k = 1; k <= 4; k++) if (area[k] || k === out.back) out.used.push(k);
     out.W = W; out.H = H; out.col = col; out.cell = cell; out.box = { x0, y0, x1, y1 };
     out.dims = { w: (x1 - x0 + 1) * cell, h: (y1 - y0 + 1) * cell };
     return out;
+  }
+
+  // Smooth outlines: slide each grid corner that sits on an edge between two colours (or on the
+  // outside edge) toward its neighbours along that edge. Stair-steps become straight slopes and
+  // curves. Every colour part uses the same corner positions, so the parts still fit together exactly.
+  function smoothCorners(g) {
+    const { W, H, col } = g, CW = W + 1, n = CW * (H + 1);
+    const L = (i, j) => (i < 0 || j < 0 || i >= W || j >= H) ? 0 : col[j * W + i];
+    const hE = new Uint8Array(n), vE = new Uint8Array(n);   // edge leaving a corner to the right / downward
+    for (let j = 0; j <= H; j++) for (let i = 0; i <= W; i++) {
+      if (i < W && L(i, j - 1) !== L(i, j)) hE[j * CW + i] = 1;
+      if (j < H && L(i - 1, j) !== L(i, j)) vE[j * CW + i] = 1;
+    }
+    const n1 = new Int32Array(n).fill(-1), n2 = new Int32Array(n).fill(-1), list = [];
+    for (let j = 0; j <= H; j++) for (let i = 0; i <= W; i++) {
+      const k = j * CW + i, nb = [];
+      if (hE[k]) nb.push(k + 1);
+      if (i > 0 && hE[k - 1]) nb.push(k - 1);
+      if (vE[k]) nb.push(k + CW);
+      if (j > 0 && vE[k - CW]) nb.push(k - CW);
+      if (nb.length === 2) { n1[k] = nb[0]; n2[k] = nb[1]; list.push(k); }   // corners where 3 colours meet stay put
+    }
+    let px = new Float32Array(n), py = new Float32Array(n);
+    for (let j = 0; j <= H; j++) for (let i = 0; i <= W; i++) { px[j * CW + i] = i; py[j * CW + i] = j; }
+    for (let it = 0; it < 6; it++) {
+      const qx = new Float32Array(px), qy = new Float32Array(py);
+      for (const k of list) {
+        const ox = k % CW, oy = (k / CW) | 0;
+        const x = 0.5 * px[k] + 0.25 * (px[n1[k]] + px[n2[k]]), y = 0.5 * py[k] + 0.25 * (py[n1[k]] + py[n2[k]]);
+        qx[k] = Math.max(ox - 0.4, Math.min(ox + 0.4, x)); qy[k] = Math.max(oy - 0.4, Math.min(oy + 0.4, y));
+      }
+      px = qx; py = qy;
+    }
+    g.px = px; g.py = py;
   }
 
   // Closed mesh for one colour, face up, in millimetres. The coloured face is the top FACE_MM;
@@ -535,12 +577,13 @@ const Engine = (() => {
       if (!c) return false;
       return slot === 0 || (l === 0 ? g.back : c) === slot;
     };
+    if (!g.px) smoothCorners(g);
     const vid = new Int32Array((W + 1) * (H + 1) * 3).fill(-1);
     const verts = [], idx = [];
     const mx = (box.x0 + box.x1 + 1) / 2, my = (box.y0 + box.y1 + 1) / 2;
     const V = (i, j, z) => {
       const k = (j * (W + 1) + i) * 3 + z;
-      if (vid[k] < 0) { vid[k] = verts.length / 3; verts.push((i - mx) * cell, (my - j) * cell, zs[z]); }
+      if (vid[k] < 0) { vid[k] = verts.length / 3; const c = j * (W + 1) + i; verts.push((g.px[c] - mx) * cell, (my - g.py[c]) * cell, zs[z]); }
       return vid[k];
     };
     const quad = (a, b, c, d) => { idx.push(a, b, c, a, c, d); };
@@ -678,9 +721,9 @@ const Engine = (() => {
     ['Green', '#1f9d4d'], ['Light blue', '#57b8e8'], ['Blue', '#1d4fc4'], ['Purple', '#7a3fb5'], ['Pink', '#f06fa8'], ['Brown', '#7a4a2a']];
   const st = { src: null, crop: { x0: 0, y0: 0, x1: 1, y1: 1 }, D: null, dw: 0, dh: 0, ver: 0,
     hole: { auto: true, u: 0, v: 0 }, palette: ['#f5f5f0', '#1b1b1f', '#d8262c', '#1d4fc4'], slot: 3,
-    paint: [], loopSlot: 1, tool: 'paint' };
+    paint: [], loopSlot: 1, back: 2, tool: 'paint' };
   try { const p = JSON.parse(localStorage.getItem('keychain-palette')); if (Array.isArray(p) && p.length === 4 && p.every((c) => /^#[0-9a-f]{6}$/i.test(c))) st.palette = p; } catch (e) {}
-  let bodyKey = '', body = null, regCol = null, grid = null, parts = [], pending = false, saver = null, inClaude = false;
+  let partsFresh = false, meshTimer = 0, bodyKey = '', body = null, regCol = null, grid = null, parts = [], pending = false, saver = null, inClaude = false;
 
   /* ---------- reading the controls ---------- */
   const style = () => document.querySelector('input[name=style]:checked').value;
@@ -716,6 +759,15 @@ const Engine = (() => {
       sw.style.background = c;
       lab.append(inp, sw, document.createTextNode('Colour ' + (n + 1)));
       box.append(lab);
+    });
+    const bk = $('backs'); bk.textContent = '';
+    st.palette.forEach((c, n) => {
+      const lab = document.createElement('label'), inp = document.createElement('input'), sw = document.createElement('i');
+      inp.type = 'radio'; inp.name = 'back'; inp.id = 'back' + (n + 1); inp.value = n + 1; inp.checked = st.back === n + 1;
+      inp.addEventListener('change', () => { st.back = n + 1; schedule(); });
+      sw.style.background = c;
+      lab.append(inp, sw, document.createTextNode('Colour ' + (n + 1)));
+      bk.append(lab);
     });
   }
   function buildChips() {
@@ -760,7 +812,7 @@ const Engine = (() => {
     const s = st.src, r = st.crop;
     const sx = Math.round(r.x0 * s.width), sy = Math.round(r.y0 * s.height);
     const sw = Math.max(8, Math.round((r.x1 - r.x0) * s.width)), sh = Math.max(8, Math.round((r.y1 - r.y0) * s.height));
-    const k = Math.min(1, 320 / Math.max(sw, sh)), w = Math.max(8, Math.round(sw * k)), h = Math.max(8, Math.round(sh * k));
+    const k = Math.min(1, 400 / Math.max(sw, sh)), w = Math.max(8, Math.round(sw * k)), h = Math.max(8, Math.round(sh * k));
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const x = c.getContext('2d', { willReadFrequently: true });
     x.imageSmoothingQuality = 'high'; x.drawImage(s, sx, sy, sw, sh, 0, 0, w, h);
@@ -849,11 +901,19 @@ const Engine = (() => {
     const o = { D: st.D, dw: st.dw, dh: st.dh, style: style(), thr: num('thr') / 100, invert: $('invert').checked, bold: num('bold'), fill: $('fill').checked };
     const key = [st.ver, o.style, o.thr, o.invert, o.bold, o.fill].join('|');
     if (key !== bodyKey) { body = Engine.buildBody(o); bodyKey = key; if (!body.empty) repaint(); }
-    const T = num('thick');
-    grid = Engine.layout(body, { on: $('holeOn').checked, dMM: num('holeD'), auto: st.hole.auto, u: st.hole.u, v: st.hole.v }, { regCol, loopSlot: st.loopSlot }, num('size'));
+    grid = Engine.layout(body, { on: $('holeOn').checked, dMM: num('holeD'), auto: st.hole.auto, u: st.hole.u, v: st.hole.v }, { regCol, loopSlot: st.loopSlot, back: st.back }, num('size'));
     if (grid.hole) { st.hole.u = grid.hole.u; st.hole.v = grid.hole.v; }
+    report(); drawTop();
+    // The top view updates straight away; the heavier 3D model waits until the controls stop moving.
+    partsFresh = false; clearTimeout(meshTimer); meshTimer = setTimeout(buildParts, 140);
+  }
+  function buildParts() {
+    clearTimeout(meshTimer);
+    if (partsFresh || !grid) return;
+    const T = num('thick');
     parts = grid.empty ? [] : [grid.back].concat(grid.used.filter((k) => k !== grid.back)).map((k) => Engine.buildPart(grid, k, T));
-    report(); drawTop(); upload3D(); draw3D();
+    partsFresh = true;
+    upload3D(); draw3D();
   }
   function report() {
     const w = [];
@@ -864,7 +924,7 @@ const Engine = (() => {
       $('sWide').textContent = grid.dims.w.toFixed(0);
       $('sTall').textContent = grid.dims.h.toFixed(0);
       $('sThick').textContent = num('thick').toFixed(1);
-      $('sCols').textContent = parts.length;
+      $('sCols').textContent = grid.used.length;
       if (body.loose > 0) w.push('I left out ' + body.loose + (body.loose === 1 ? ' loose bit that was' : ' loose bits that were') + ' not joined to your shape. Try “Make lines thicker” to join them, or pick a tag style.');
       if (grid.pieces > 1) w.push('Your keychain is in ' + grid.pieces + ' pieces. Move the hole until its loop touches your shape.');
     }
@@ -903,7 +963,7 @@ const Engine = (() => {
       d[q] = p[0]; d[q + 1] = p[1]; d[q + 2] = p[2]; d[q + 3] = 255;
     }
     octx.putImageData(im, 0, 0);
-    tctx.imageSmoothingEnabled = false;
+    tctx.imageSmoothingEnabled = true; tctx.imageSmoothingQuality = 'high';
     tctx.drawImage(off, vx, vy, vw, vh, ox, oy, vw * sc, vh * sc);
     if (grid.hole && st.tool === 'hole') {
       const h = grid.hole, px = ox + (h.cx - vx) * sc, py = oy + (h.cy - vy) * sc;
@@ -1037,6 +1097,8 @@ const Engine = (() => {
     return n || 'my-keychain';
   }
   async function download(kind) {
+    if (pending) rebuild();
+    buildParts();
     if (!parts.length) return;
     const name = fileName(), T = num('thick'), flipped = parts.map((p) => Engine.faceDown(p, T));
     $('saved').textContent = 'Making your file...';
