@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keychain Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: numbered steps down the left like a worksheet, a sticky print-bed preview on the right. */
+  --bg: #e9eef3;
+  --panel: #ffffff;
+  --ink: #18263a;
+  --muted: #56667a;
+  --line: #cdd7e2;
+  --accent: #f26a1b;
+  --accent-deep: #b44708;
+  --accent-soft: #ffe6d3;
+  --hole: #0b8f8a;
+  --plate: #1d2b3f;
+  --warn-bg: #fff1cf;
+  --warn-ink: #6f4500;
+  --font-display: "Baloo 2", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  --font-body: "Nunito", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.45; }
+header { padding: 20px 24px 6px; max-width: 1240px; margin: 0 auto; }
+h1 { font-family: var(--font-display); font-size: 2.1rem; line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 span { color: var(--accent); }
+header p { margin: 4px 0 0; color: var(--muted); }
+main {
+  max-width: 1240px; margin: 0 auto; padding: 14px 24px 40px;
+  display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 20px; align-items: start;
+}
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.step h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 10px; }
+.num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 1rem; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+button, .filebtn {
+  font: inherit; font-weight: 700; border: 2px solid var(--ink); background: var(--panel); color: var(--ink);
+  border-radius: 10px; padding: 8px 14px; cursor: pointer;
+}
+button:hover, .filebtn:hover { background: var(--accent-soft); }
+button:focus-visible, .filebtn:focus-within, input:focus-visible, canvas:focus-visible { outline: 3px solid var(--hole); outline-offset: 2px; }
+.filebtn { display: inline-block; background: var(--ink); color: #fff; }
+.filebtn:hover { background: #2a3d59; }
+.filebtn input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+#crop { width: 100%; height: auto; display: block; border-radius: 8px; touch-action: none; cursor: crosshair; background: #fff; }
+.tip { color: var(--muted); font-size: 0.92rem; margin: 0; }
+.styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.styles label {
+  border: 2px solid var(--line); border-radius: 12px; padding: 8px 6px 6px; text-align: center; cursor: pointer;
+  font-weight: 700; font-size: 0.95rem; display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.styles input, .slots input { position: absolute; opacity: 0; }
+.styles label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.styles label:has(input:focus-visible), .slots label:has(input:focus-visible) { outline: 3px solid var(--hole); outline-offset: 2px; }
+.styles svg { width: 54px; height: 44px; }
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.slots label {
+  border: 2px solid var(--line); border-radius: 12px; padding: 6px; cursor: pointer; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.9rem;
+}
+.slots label:has(input:checked) { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.slots i { width: 100%; height: 34px; border-radius: 8px; border: 1px solid #0003; display: block; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid #0004; }
+.field { display: flex; flex-direction: column; gap: 2px; }
+.field .lab { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.field output { font-variant-numeric: tabular-nums; color: var(--accent-deep); font-weight: 700; white-space: nowrap; }
+input[type=range] { width: 100%; accent-color: var(--accent); height: 26px; margin: 0; }
+.check { display: flex; gap: 10px; align-items: center; font-weight: 600; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+input[type=text] { font: inherit; border: 2px solid var(--line); border-radius: 10px; padding: 8px 10px; width: 100%; color: var(--ink); background: #fff; }
+.preview { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.views { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.view { background: var(--plate); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.view h3 {
+  margin: 0; padding: 8px 12px; min-height: 50px; font-family: var(--font-display); font-size: 1.02rem; color: #fff;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.view h3 small { font-family: var(--font-body); font-weight: 600; color: #a9b9cd; font-size: 0.85rem; }
+.tools { display: flex; gap: 6px; }
+.tools button { border-color: #a9b9cd; background: transparent; color: #fff; padding: 4px 10px; font-size: 0.88rem; font-family: var(--font-body); }
+.tools button[aria-pressed=true] { background: #fff; color: var(--ink); border-color: #fff; }
+.view canvas { width: 100%; aspect-ratio: 1 / 1; display: block; touch-action: none; }
+#top { cursor: crosshair; }
+#spin { cursor: grab; background: radial-gradient(circle at 50% 40%, #3b506c, #1d2b3f 70%); }
+#spin:active { cursor: grabbing; }
+#noGL { color: #fff; padding: 20px; margin: 0; }
+.stats {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px;
+  display: flex; gap: 10px 22px; flex-wrap: wrap; align-items: center;
+}
+.stat { display: flex; flex-direction: column; }
+.stat b { font-family: var(--font-display); font-size: 1.3rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 0.85rem; }
+.dl { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+#dl3mf { background: var(--accent); border-color: var(--accent-deep); color: #fff; font-size: 1.05rem; padding: 10px 18px; }
+#dl3mf:hover { background: var(--accent-deep); }
+.dl button:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg { background: var(--warn-bg); color: var(--warn-ink); border-left: 6px solid #e0a100; border-radius: 8px; padding: 10px 14px; font-weight: 600; }
+.msg:empty { display: none; }
+#saved { color: var(--hole); font-weight: 700; }
+footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 28px; color: var(--muted); font-size: 0.9rem; }
+[hidden] { display: none !important; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } .preview { position: static; order: -1; } }
+@media (max-width: 520px) { .views { grid-template-columns: 1fr; } .dl { margin-left: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Keychain <span>Maker</span></h1>
+  <p>Turn your drawing into a colour keychain you can 3D print.</p>
+</header>
+
+<main>
+  <div class="steps">
+    <section class="step">
+      <h2><span class="num">1</span>Pick and crop your drawing</h2>
+      <div class="drop" id="drop">
+        <canvas id="crop" width="640" height="480" aria-label="Your picture. Drag a box around your drawing to crop it."></canvas>
+        <div class="row">
+          <label class="filebtn">Choose a picture<input type="file" id="file" accept="image/*"></label>
+          <button type="button" id="sample">Use the sample</button>
+          <button type="button" id="cropReset">Use the whole picture</button>
+        </div>
+      </div>
+      <p class="tip"><b>Drag a box around your drawing</b> to cut out the desk and edges. Drag a corner to fix the box. Dark marker on white paper works best.</p>
+      <div class="msg" id="loadMsg" role="alert"></div>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">2</span>Choose a style</h2>
+      <div class="styles" role="radiogroup" aria-label="Keychain style">
+        <label><input type="radio" name="style" id="styleRect" value="rect" checked>
+          <svg viewBox="0 0 54 44" aria-hidden="true"><rect x="5" y="6" width="44" height="34" rx="6" fill="#ffb27a"/><path d="M27 13l3.4 7 7.6 1-5.5 5.3 1.3 7.6L27 30.3 20.2 34l1.3-7.6L16 21l7.6-1z" fill="#f26a1b"/></svg>
+          Tag</label>
+        <label><input type="radio" name="style" id="styleCircle" value="circle">
+          <svg viewBox="0 0 54 44" aria-hidden="true"><circle cx="27" cy="23" r="18" fill="#ffb27a"/><path d="M27 12l3.4 7 7.6 1-5.5 5.3 1.3 7.6L27 29.3 20.2 33l1.3-7.6L16 20l7.6-1z" fill="#f26a1b"/></svg>
+          Circle tag</label>
+        <label><input type="radio" name="style" id="styleCut" value="cutout">
+          <svg viewBox="0 0 54 44" aria-hidden="true"><path d="M27 4l5.6 11.6 12.6 1.7-9.1 8.8 2.2 12.6L27 32.6 15.7 38.7l2.2-12.6-9.1-8.8 12.6-1.7z" fill="#f26a1b"/></svg>
+          Cut-out</label>
+      </div>
+      <p class="tip" id="styleTip"></p>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">3</span>Fix up your lines</h2>
+      <div class="field">
+        <div class="lab"><label for="thr">Pick up lighter lines</label><output id="thrOut" for="thr"></output></div>
+        <input type="range" id="thr" min="30" max="95" step="1" value="68">
+      </div>
+      <div class="field">
+        <div class="lab"><label for="bold">Make lines thicker</label><output id="boldOut" for="bold"></output></div>
+        <input type="range" id="bold" min="0" max="5" step="1" value="1">
+      </div>
+      <label class="check" id="fillWrap" hidden><input type="checkbox" id="fill" checked>Fill in the inside of my shape</label>
+      <label class="check"><input type="checkbox" id="invert">My drawing is light on a dark background</label>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">4</span>Colour it in</h2>
+      <div class="slots" id="slots" role="radiogroup" aria-label="Paint colour"></div>
+      <p class="tip">Pick one of your 4 colours, then <b>click a part of your keychain</b> in the Top view to fill it. Lines can be filled too.</p>
+      <div class="field">
+        <span style="font-weight:600" id="chipLab">Change this colour to</span>
+        <div class="chips" id="chips" aria-labelledby="chipLab"></div>
+      </div>
+      <div class="row"><button type="button" id="paintReset">Start colouring again</button></div>
+      <p class="tip">Colours 1 to 4 are filament slots 1 to 4 on the printer.</p>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">5</span>Set the size</h2>
+      <div class="field">
+        <div class="lab"><label for="size">Longest side</label><output id="sizeOut" for="size"></output></div>
+        <input type="range" id="size" min="30" max="80" step="1" value="50">
+      </div>
+      <div class="field">
+        <div class="lab"><label for="thick">Thickness</label><output id="thickOut" for="thick"></output></div>
+        <input type="range" id="thick" min="1.5" max="6" step="0.5" value="3">
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">6</span>Add the hole</h2>
+      <label class="check"><input type="checkbox" id="holeOn" checked>Add a hole for the keyring</label>
+      <div id="holeControls" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <div class="lab"><label for="holeD">Hole size</label><output id="holeDOut" for="holeD"></output></div>
+          <input type="range" id="holeD" min="3" max="6" step="0.5" value="4">
+        </div>
+        <p class="tip">Press <b>Move hole</b>, then click or drag in the Top view. Put it inside your drawing, or just outside and it grows its own loop.</p>
+        <div class="row">
+          <button type="button" id="holeTool">Move hole</button>
+          <button type="button" id="holeReset">Put it back on top</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">7</span>Name it</h2>
+      <div class="field">
+        <label for="name" style="font-weight:600">File name (your name works well)</label>
+        <input type="text" id="name" maxlength="40" placeholder="my-keychain" autocomplete="off">
+      </div>
+    </section>
+  </div>
+
+  <div class="preview">
+    <div class="views">
+      <div class="view">
+        <h3>Top view
+          <span class="tools" role="group" aria-label="Top view tool">
+            <button type="button" id="toolPaint" aria-pressed="true">Colour</button>
+            <button type="button" id="toolHole" aria-pressed="false">Move hole</button>
+          </span>
+        </h3>
+        <canvas id="top" tabindex="0" aria-label="Top view of the keychain. Click to colour a part or to place the hole. Each square is 10 millimetres."></canvas>
+      </div>
+      <div class="view">
+        <h3>3D view <small>drag to spin</small></h3>
+        <canvas id="spin" aria-label="3D view of the keychain"></canvas>
+        <p id="noGL" hidden>The 3D view will not run on this computer. The top view and downloads still work.</p>
+      </div>
+    </div>
+    <div class="msg" id="warn" role="status"></div>
+    <div class="stats">
+      <div class="stat"><b id="sWide">--</b><span>mm wide</span></div>
+      <div class="stat"><b id="sTall">--</b><span>mm tall</span></div>
+      <div class="stat"><b id="sThick">--</b><span>mm thick</span></div>
+      <div class="stat"><b id="sCols">--</b><span>colours</span></div>
+      <div class="dl">
+        <button type="button" id="dl3mf">Download 3MF</button>
+        <button type="button" id="dlstl">Download STL</button>
+      </div>
+    </div>
+    <div id="saved" role="status"></div>
+    <p class="tip">Each square in the Top view is 10 mm. The file is saved face down, so the coloured side prints on the plate.</p>
+  </div>
+</main>
+
+<footer>Your picture stays on this computer. Nothing is uploaded.</footer>
+
+<script id="engine">
+/* Geometry engine: no page access, so it can be tested on its own. */
+const Engine = (() => {
+  const N = 150;       // cells along the longest side of the keychain body
+  const P = 50;        // spare cells around the body for a hole loop
+  const VIEW = 45;     // how many of those the top view shows
+  const RING_MM = 2;   // wall of plastic kept around the hole
+  const FACE_MM = 0.6; // depth of the coloured face (three 0.2 mm layers)
+
+  // Darkness map: 1 = clean paper, 0 = darkest ink. Evens out shadows on photos of paper.
+  function analyze(rgba, w, h) {
+    const n = w * h, v = new Float32Array(n);
+    for (let p = 0, q = 0; p < n; p++, q += 4) {
+      const a = rgba[q + 3] / 255, k = 255 * (1 - a);
+      const r = rgba[q] * a + k, g = rgba[q + 1] * a + k, b = rgba[q + 2] * a + k;
+      v[p] = 0.5 * (0.299 * r + 0.587 * g + 0.114 * b) + 0.5 * Math.min(r, g, b);
+    }
+    const bs = Math.max(4, Math.round(Math.max(w, h) / 12));
+    const cw = Math.ceil(w / bs), ch = Math.ceil(h / bs);
+    let c = new Float32Array(cw * ch);
+    for (let y = 0; y < h; y++) {
+      const cy = (y / bs) | 0;
+      for (let x = 0; x < w; x++) {
+        const ci = cy * cw + ((x / bs) | 0), val = v[y * w + x];
+        if (val > c[ci]) c[ci] = val;
+      }
+    }
+    const pass = (src, isMax) => {
+      const out = new Float32Array(cw * ch);
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+        let acc = 0, cnt = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= cw || yy >= ch) continue;
+          const s = src[yy * cw + xx];
+          if (isMax) { if (s > acc) acc = s; } else { acc += s; cnt++; }
+        }
+        out[y * cw + x] = isMax ? acc : acc / cnt;
+      }
+      return out;
+    };
+    c = pass(pass(c, true), false);
+    let gmax = 0;
+    for (let i = 0; i < c.length; i++) if (c[i] > gmax) gmax = c[i];
+    const floor = Math.max(40, 0.55 * gmax);
+    const D = new Float32Array(n);
+    for (let y = 0; y < h; y++) {
+      let fy = (y + 0.5) / bs - 0.5; fy = Math.max(0, Math.min(ch - 1, fy));
+      const y0 = fy | 0, y1 = Math.min(ch - 1, y0 + 1), ty = fy - y0;
+      for (let x = 0; x < w; x++) {
+        let fx = (x + 0.5) / bs - 0.5; fx = Math.max(0, Math.min(cw - 1, fx));
+        const x0 = fx | 0, x1 = Math.min(cw - 1, x0 + 1), tx = fx - x0;
+        const bg = (c[y0 * cw + x0] * (1 - tx) + c[y0 * cw + x1] * tx) * (1 - ty) +
+                   (c[y1 * cw + x0] * (1 - tx) + c[y1 * cw + x1] * tx) * ty;
+        D[y * w + x] = Math.min(1, v[y * w + x] / Math.max(bg, floor));
+      }
+    }
+    return D;
+  }
+
+  // Connected pieces of cells that share the same non-zero value. conn = 4 or 8.
+  function components(mask, W, H, conn) {
+    const labels = new Int32Array(W * H), areas = [0], stack = [];
+    let count = 0;
+    for (let s = 0; s < W * H; s++) {
+      if (!mask[s] || labels[s]) continue;
+      const val = mask[s];
+      count++; let area = 0;
+      labels[s] = count; stack.push(s);
+      while (stack.length) {
+        const p = stack.pop(); area++;
+        const x = p % W, y = (p / W) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          if (conn === 4 && dx && dy) continue;
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          const q = yy * W + xx;
+          if (mask[q] === val && !labels[q]) { labels[q] = count; stack.push(q); }
+        }
+      }
+      areas.push(area);
+    }
+    return { labels, areas, count };
+  }
+
+  function dropSpecks(mask, W, H, minArea) {
+    const c = components(mask, W, H, 8);
+    for (let i = 0; i < mask.length; i++) if (mask[i] && c.areas[c.labels[i]] < minArea) mask[i] = 0;
+  }
+
+  function dilate(mask, W, H, times) {
+    let cur = mask;
+    for (let t = 0; t < times; t++) {
+      const out = new Uint8Array(cur), diag = t % 2 === 1;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        if (cur[y * W + x]) continue;
+        let hit = 0;
+        for (let dy = -1; dy <= 1 && !hit; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          if (!diag && dx && dy) continue;
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          if (cur[yy * W + xx]) { hit = 1; break; }
+        }
+        if (hit) out[y * W + x] = 1;
+      }
+      cur = out;
+    }
+    return cur;
+  }
+
+  function fillHoles(mask, W, H) {
+    const outside = new Uint8Array(W * H), stack = [];
+    const seed = (p) => { if (!mask[p] && !outside[p]) { outside[p] = 1; stack.push(p); } };
+    for (let x = 0; x < W; x++) { seed(x); seed((H - 1) * W + x); }
+    for (let y = 0; y < H; y++) { seed(y * W); seed(y * W + W - 1); }
+    while (stack.length) {
+      const p = stack.pop(), x = p % W, y = (p / W) | 0;
+      if (x > 0) seed(p - 1);
+      if (x < W - 1) seed(p + 1);
+      if (y > 0) seed(p - W);
+      if (y < H - 1) seed(p + W);
+    }
+    const out = new Uint8Array(W * H);
+    for (let i = 0; i < out.length; i++) out[i] = outside[i] ? 0 : 1;
+    return out;
+  }
+
+  // Body of the keychain on a cell grid: cls 0 = nothing, 1 = open area, 2 = line.
+  // reg numbers each paintable region (a joined-up area or a joined-up line).
+  function buildBody(o) {
+    const { D, dw, dh } = o;
+    const isInk = (val) => o.invert ? val >= o.thr : val < o.thr;
+    const empty = { empty: true, W: 1, H: 1, bw: 1, bh: 1, loose: 0 };
+
+    const raw = new Uint8Array(dw * dh);
+    for (let i = 0; i < raw.length; i++) raw[i] = isInk(D[i]) ? 1 : 0;
+    dropSpecks(raw, dw, dh, Math.max(6, Math.round(0.00008 * dw * dh)));
+    let x0 = dw, y0 = dh, x1 = -1, y1 = -1;
+    for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) if (raw[y * dw + x]) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return empty;
+    const sw = x1 - x0 + 1, sh = y1 - y0 + 1;
+
+    const m = o.style === 'cutout' ? 0 : Math.round(N * 0.07);
+    let s, bw, bh;
+    if (o.style === 'circle') { s = (N - 2 * m) / Math.hypot(sw, sh); bw = bh = N; }
+    else { s = (N - 2 * m) / Math.max(sw, sh); bw = Math.max(1, Math.round(sw * s)) + 2 * m; bh = Math.max(1, Math.round(sh * s)) + 2 * m; }
+    const cw = Math.max(1, Math.round(sw * s)), chh = Math.max(1, Math.round(sh * s));
+    const W = bw + 2 * P, H = bh + 2 * P;
+    const ox = P + Math.round((bw - cw) / 2), oy = P + Math.round((bh - chh) / 2);
+
+    let ink = new Uint8Array(W * H);
+    for (let j = 0; j < chh; j++) {
+      let fy = y0 + (j + 0.5) / chh * sh - 0.5; fy = Math.max(0, Math.min(dh - 1, fy));
+      const ya = fy | 0, yb = Math.min(dh - 1, ya + 1), ty = fy - ya;
+      for (let i = 0; i < cw; i++) {
+        let fx = x0 + (i + 0.5) / cw * sw - 0.5; fx = Math.max(0, Math.min(dw - 1, fx));
+        const xa = fx | 0, xb = Math.min(dw - 1, xa + 1), tx = fx - xa;
+        const val = (D[ya * dw + xa] * (1 - tx) + D[ya * dw + xb] * tx) * (1 - ty) +
+                    (D[yb * dw + xa] * (1 - tx) + D[yb * dw + xb] * tx) * ty;
+        if (isInk(val)) ink[(oy + j) * W + ox + i] = 1;
+      }
+    }
+    dropSpecks(ink, W, H, 5);
+    if (o.bold > 0) ink = dilate(ink, W, H, o.bold);
+
+    let body = new Uint8Array(W * H), loose = 0;
+    if (o.style === 'rect') {
+      const rr = N * 0.09;
+      for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) {
+        const px = i + 0.5, py = j + 0.5;
+        const dx = Math.max(rr - px, px - (bw - rr), 0), dy = Math.max(rr - py, py - (bh - rr), 0);
+        if (dx * dx + dy * dy <= rr * rr) body[(P + j) * W + P + i] = 1;
+      }
+    } else if (o.style === 'circle') {
+      const r = N / 2;
+      for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) {
+        const dx = i + 0.5 - r, dy = j + 0.5 - r;
+        if (dx * dx + dy * dy <= r * r) body[(P + j) * W + P + i] = 1;
+      }
+    } else {
+      body = o.fill ? fillHoles(ink, W, H) : new Uint8Array(ink);
+      const c = components(body, W, H, 4);
+      if (c.count === 0) return empty;
+      let best = 1;
+      for (let k = 2; k <= c.count; k++) if (c.areas[k] > c.areas[best]) best = k;
+      loose = c.count - 1;
+      for (let i = 0; i < body.length; i++) if (body[i] && c.labels[i] !== best) body[i] = 0;
+    }
+
+    const cls = new Uint8Array(W * H);
+    let bx0 = W, by0 = H, bx1 = -1, by1 = -1, sx = 0, cnt = 0;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      const q = j * W + i; if (!body[q]) continue;
+      cls[q] = ink[q] ? 2 : 1;
+      if (i < bx0) bx0 = i; if (i > bx1) bx1 = i; if (j < by0) by0 = j; if (j > by1) by1 = j;
+      sx += i + 0.5; cnt++;
+    }
+    const rg = components(cls, W, H, 4);
+    const regCls = new Uint8Array(rg.count + 1);
+    for (let i = 0; i < cls.length; i++) if (cls[i]) regCls[rg.labels[i]] = cls[i];
+
+    // Where a hole goes by default: top of the shape, above its balance point.
+    let col = o.style === 'cutout' ? Math.round(sx / cnt - 0.5) : Math.round(P + bw / 2 - 0.5);
+    const topOf = (c) => { for (let j = 0; j < H; j++) if (cls[j * W + c]) return j; return -1; };
+    let top = topOf(col);
+    for (let d = 1; top < 0 && d < W; d++) {
+      if (col - d >= 0 && topOf(col - d) >= 0) { col -= d; top = topOf(col); }
+      else if (col + d < W && topOf(col + d) >= 0) { col += d; top = topOf(col); }
+    }
+    return { empty: false, W, H, bw, bh, ox, oy, cw, chh, cls, reg: rg.labels, nReg: rg.count, regCls, loose,
+      style: o.style, box: { x0: bx0, y0: by0, x1: bx1, y1: by1 }, autoCol: col, autoTop: top };
+  }
+
+  // Add the hole and its loop, apply the paint, and scale so the longest side is sizeMM.
+  // paint = { regCol: slot per region, loopSlot }. Result col[] holds 0 or a colour slot 1-4.
+  function layout(body, hole, paint, sizeMM) {
+    const out = { empty: body.empty, hole: null, pieces: 0, body, cell: sizeMM / N, used: [], back: 1 };
+    if (body.empty) return out;
+    const { W, H, bw, bh, box } = body;
+    const place = (cell) => {
+      const rIn = hole.dMM / 2 / cell, rOut = rIn + RING_MM / cell;
+      let cx, cy;
+      if (hole.auto) { cx = body.autoCol + 0.5; cy = body.autoTop - 0.5 * rIn; }
+      else { cx = P + bw / 2 + hole.u * N; cy = P + bh / 2 + hole.v * N; }
+      cx = Math.max(P - VIEW + rOut, Math.min(P + bw + VIEW - rOut, cx));
+      cy = Math.max(P - VIEW + rOut, Math.min(P + bh + VIEW - rOut, cy));
+      return { cx, cy, rIn, rOut };
+    };
+    let cell = sizeMM / Math.max(box.x1 - box.x0 + 1, box.y1 - box.y0 + 1), h = null;
+    if (hole.on) {
+      for (let it = 0; it < 8; it++) {
+        h = place(cell);
+        const w = Math.max(box.x1 + 1, h.cx + h.rOut) - Math.min(box.x0, h.cx - h.rOut);
+        const t = Math.max(box.y1 + 1, h.cy + h.rOut) - Math.min(box.y0, h.cy - h.rOut);
+        cell = sizeMM / Math.max(w, t);
+      }
+      h = place(cell);
+    }
+    const col = new Uint8Array(W * H);
+    for (let i = 0; i < col.length; i++) if (body.cls[i]) col[i] = paint.regCol[body.reg[i]];
+    if (h) {
+      const a0 = Math.max(0, Math.floor(h.cx - h.rOut - 1)), a1 = Math.min(W - 1, Math.ceil(h.cx + h.rOut + 1));
+      const b0 = Math.max(0, Math.floor(h.cy - h.rOut - 1)), b1 = Math.min(H - 1, Math.ceil(h.cy + h.rOut + 1));
+      for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) {
+        const dx = i + 0.5 - h.cx, dy = j + 0.5 - h.cy, d2 = dx * dx + dy * dy;
+        if (d2 <= h.rIn * h.rIn) col[j * W + i] = 0;
+        else if (d2 <= h.rOut * h.rOut && !col[j * W + i]) col[j * W + i] = paint.loopSlot;
+      }
+      out.hole = { cx: h.cx, cy: h.cy, rIn: h.rIn, rOut: h.rOut, u: (h.cx - (P + bw / 2)) / N, v: (h.cy - (P + bh / 2)) / N };
+    }
+    const solid = new Uint8Array(W * H), area = [0, 0, 0, 0, 0];
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const c = col[j * W + i]; if (c) {
+      solid[j * W + i] = 1; area[c]++;
+      if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j;
+    } }
+    const cc = components(solid, W, H, 4);
+    for (let k = 1; k <= cc.count; k++) if (cc.areas[k] >= 4) out.pieces++;
+    cell = sizeMM / Math.max(x1 - x0 + 1, y1 - y0 + 1);   // exact: longest side is the size asked for
+    for (let k = 1; k <= 4; k++) { if (area[k]) out.used.push(k); if (area[k] > area[out.back]) out.back = k; }
+    out.W = W; out.H = H; out.col = col; out.cell = cell; out.box = { x0, y0, x1, y1 };
+    out.dims = { w: (x1 - x0 + 1) * cell, h: (y1 - y0 + 1) * cell };
+    return out;
+  }
+
+  // Closed mesh for one colour, face up, in millimetres. The coloured face is the top FACE_MM;
+  // everything under it belongs to the backing colour g.back. slot 0 = the whole keychain as one piece.
+  function buildPart(g, slot, T) {
+    const { W, H, cell, col, box } = g;
+    const zs = [0, Math.max(T - FACE_MM, T / 2), T];
+    const lab = (i, j, l) => {
+      if (i < 0 || j < 0 || i >= W || j >= H) return false;
+      const c = col[j * W + i];
+      if (!c) return false;
+      return slot === 0 || (l === 0 ? g.back : c) === slot;
+    };
+    const vid = new Int32Array((W + 1) * (H + 1) * 3).fill(-1);
+    const verts = [], idx = [];
+    const mx = (box.x0 + box.x1 + 1) / 2, my = (box.y0 + box.y1 + 1) / 2;
+    const V = (i, j, z) => {
+      const k = (j * (W + 1) + i) * 3 + z;
+      if (vid[k] < 0) { vid[k] = verts.length / 3; verts.push((i - mx) * cell, (my - j) * cell, zs[z]); }
+      return vid[k];
+    };
+    const quad = (a, b, c, d) => { idx.push(a, b, c, a, c, d); };
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      if (!col[j * W + i]) continue;
+      for (let l = 0; l < 2; l++) {
+        if (!lab(i, j, l)) continue;
+        const z0 = l, z1 = l + 1;
+        if (l === 1 || !lab(i, j, 1)) quad(V(i, j + 1, z1), V(i + 1, j + 1, z1), V(i + 1, j, z1), V(i, j, z1));
+        if (l === 0 || !lab(i, j, 0)) quad(V(i, j, z0), V(i + 1, j, z0), V(i + 1, j + 1, z0), V(i, j + 1, z0));
+        if (!lab(i + 1, j, l)) quad(V(i + 1, j + 1, z0), V(i + 1, j, z0), V(i + 1, j, z1), V(i + 1, j + 1, z1));
+        if (!lab(i - 1, j, l)) quad(V(i, j + 1, z1), V(i, j, z1), V(i, j, z0), V(i, j + 1, z0));
+        if (!lab(i, j - 1, l)) quad(V(i, j, z0), V(i, j, z1), V(i + 1, j, z1), V(i + 1, j, z0));
+        if (!lab(i, j + 1, l)) quad(V(i + 1, j + 1, z0), V(i + 1, j + 1, z1), V(i, j + 1, z1), V(i, j + 1, z0));
+      }
+    }
+    return { slot, verts: new Float32Array(verts), idx: new Uint32Array(idx) };
+  }
+
+  // Turn a part over so the coloured face sits on the print plate (a half turn, not a mirror).
+  function faceDown(part, T) {
+    const v = new Float32Array(part.verts);
+    for (let i = 0; i < v.length; i += 3) { v[i] = -v[i]; v[i + 2] = T - v[i + 2]; }
+    return { slot: part.slot, verts: v, idx: part.idx };
+  }
+
+  function toSTL(parts, label) {
+    let tris = 0; for (const p of parts) tris += p.idx.length / 3;
+    const buf = new ArrayBuffer(84 + tris * 50), dv = new DataView(buf);
+    const head = ('Keychain Maker ' + (label || '')).slice(0, 79);
+    for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i) & 127);
+    dv.setUint32(80, tris, true);
+    let o = 84;
+    for (const p of parts) {
+      const v = p.verts, ix = p.idx;
+      for (let t = 0; t < ix.length; t += 3) {
+        const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+        const ux = v[b] - v[a], uy = v[b + 1] - v[a + 1], uz = v[b + 2] - v[a + 2];
+        const wx = v[c] - v[a], wy = v[c + 1] - v[a + 1], wz = v[c + 2] - v[a + 2];
+        let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+        const len = Math.hypot(nx, ny, nz) || 1;
+        dv.setFloat32(o, nx / len, true); dv.setFloat32(o + 4, ny / len, true); dv.setFloat32(o + 8, nz / len, true); o += 12;
+        for (const q of [a, b, c]) { dv.setFloat32(o, v[q], true); dv.setFloat32(o + 4, v[q + 1], true); dv.setFloat32(o + 8, v[q + 2], true); o += 12; }
+        o += 2;
+      }
+    }
+    return new Uint8Array(buf);
+  }
+
+  // 3MF files: one object made of one part per colour, plus the settings file Bambu Studio
+  // reads to put each part on its filament slot ("extruder" 1-4).
+  function threeMF(parts, name, colourNames) {
+    const f = (n) => { const s = n.toFixed(3); return s.indexOf('.') < 0 ? s : s.replace(/0+$/, '').replace(/\.$/, ''); };
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const m = ['<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n',
+      '<metadata name="Application">Keychain Maker</metadata>\n<metadata name="Title">' + esc(name) + '</metadata>\n<resources>\n'];
+    parts.forEach((p, n) => {
+      m.push('<object id="' + (n + 1) + '" type="model" name="' + esc(colourNames[p.slot]) + '"><mesh><vertices>\n');
+      const v = p.verts, ix = p.idx, chunk = [];
+      for (let i = 0; i < v.length; i += 3) chunk.push('<vertex x="' + f(v[i]) + '" y="' + f(v[i + 1]) + '" z="' + f(v[i + 2]) + '"/>');
+      m.push(chunk.join('\n'), '\n</vertices><triangles>\n');
+      const tc = [];
+      for (let t = 0; t < ix.length; t += 3) tc.push('<triangle v1="' + ix[t] + '" v2="' + ix[t + 1] + '" v3="' + ix[t + 2] + '"/>');
+      m.push(tc.join('\n'), '\n</triangles></mesh></object>\n');
+    });
+    const parent = parts.length + 1;
+    m.push('<object id="' + parent + '" type="model" name="' + esc(name) + '"><components>\n');
+    parts.forEach((p, n) => m.push('<component objectid="' + (n + 1) + '"/>\n'));
+    m.push('</components></object>\n</resources>\n<build><item objectid="' + parent + '" transform="1 0 0 0 1 0 0 0 1 128 128 0"/></build>\n</model>\n');
+    const cfg = ['<?xml version="1.0" encoding="UTF-8"?>\n<config>\n<object id="' + parent + '">\n<metadata key="name" value="' + esc(name) + '"/>\n<metadata key="extruder" value="' + parts[0].slot + '"/>\n'];
+    parts.forEach((p, n) => cfg.push('<part id="' + (n + 1) + '" subtype="normal_part">\n<metadata key="name" value="' + esc(colourNames[p.slot]) + '"/>\n' +
+      '<metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>\n<metadata key="extruder" value="' + p.slot + '"/>\n</part>\n'));
+    cfg.push('</object>\n</config>\n');
+    const enc = new TextEncoder();
+    return [
+      { name: '[Content_Types].xml', bytes: enc.encode('<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>\n') },
+      { name: '_rels/.rels', bytes: enc.encode('<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>\n') },
+      { name: '3D/3dmodel.model', bytes: enc.encode(m.join('')) },
+      { name: 'Metadata/model_settings.config', bytes: enc.encode(cfg.join('')) }
+    ];
+  }
+
+  let crcTable = null;
+  function crc32(bytes) {
+    if (!crcTable) { crcTable = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcTable[n] = c >>> 0; } }
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 255] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  async function deflate(bytes) {
+    if (typeof CompressionStream === 'undefined' || bytes.length < 200) return null;
+    try {
+      const s = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return new Uint8Array(await new Response(s).arrayBuffer());
+    } catch (e) { return null; }
+  }
+  // Zip archive; files are squeezed when the browser can do it, stored as-is when it cannot.
+  async function zip(files) {
+    const enc = new TextEncoder(), recs = [];
+    let size = 22;
+    for (const f of files) {
+      const nm = enc.encode(f.name), packed = await deflate(f.bytes);
+      const data = packed && packed.length < f.bytes.length ? packed : f.bytes;
+      recs.push({ nm, data, method: data === f.bytes ? 0 : 8, crc: crc32(f.bytes), raw: f.bytes.length });
+      size += 30 + nm.length + data.length + 46 + nm.length;
+    }
+    const out = new Uint8Array(size), dv = new DataView(out.buffer);
+    let o = 0;
+    for (const r of recs) {
+      r.at = o;
+      dv.setUint32(o, 0x04034b50, true); dv.setUint16(o + 4, 20, true); dv.setUint16(o + 6, 0x0800, true); dv.setUint16(o + 8, r.method, true);
+      dv.setUint32(o + 14, r.crc, true); dv.setUint32(o + 18, r.data.length, true); dv.setUint32(o + 22, r.raw, true);
+      dv.setUint16(o + 26, r.nm.length, true); out.set(r.nm, o + 30); o += 30 + r.nm.length;
+      out.set(r.data, o); o += r.data.length;
+    }
+    const cd = o;
+    for (const r of recs) {
+      dv.setUint32(o, 0x02014b50, true); dv.setUint16(o + 4, 20, true); dv.setUint16(o + 6, 20, true); dv.setUint16(o + 8, 0x0800, true); dv.setUint16(o + 10, r.method, true);
+      dv.setUint32(o + 16, r.crc, true); dv.setUint32(o + 20, r.data.length, true); dv.setUint32(o + 24, r.raw, true);
+      dv.setUint16(o + 28, r.nm.length, true); dv.setUint32(o + 42, r.at, true); out.set(r.nm, o + 46); o += 46 + r.nm.length;
+    }
+    dv.setUint32(o, 0x06054b50, true); dv.setUint16(o + 8, recs.length, true); dv.setUint16(o + 10, recs.length, true);
+    dv.setUint32(o + 12, o - cd, true); dv.setUint32(o + 16, cd, true);
+    return out;
+  }
+
+  return { N, P, VIEW, FACE_MM, analyze, buildBody, layout, buildPart, faceDown, toSTL, threeMF, zip };
+})();
+</script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const FILAMENTS = [['White', '#f5f5f0'], ['Black', '#1b1b1f'], ['Grey', '#8e9399'], ['Red', '#d8262c'], ['Orange', '#f47a1f'], ['Yellow', '#f7d21a'],
+    ['Green', '#1f9d4d'], ['Light blue', '#57b8e8'], ['Blue', '#1d4fc4'], ['Purple', '#7a3fb5'], ['Pink', '#f06fa8'], ['Brown', '#7a4a2a']];
+  const st = { src: null, crop: { x0: 0, y0: 0, x1: 1, y1: 1 }, D: null, dw: 0, dh: 0, ver: 0,
+    hole: { auto: true, u: 0, v: 0 }, palette: ['#f5f5f0', '#1b1b1f', '#d8262c', '#1d4fc4'], slot: 3,
+    paint: [], loopSlot: 1, tool: 'paint' };
+  try { const p = JSON.parse(localStorage.getItem('keychain-palette')); if (Array.isArray(p) && p.length === 4 && p.every((c) => /^#[0-9a-f]{6}$/i.test(c))) st.palette = p; } catch (e) {}
+  let bodyKey = '', body = null, regCol = null, grid = null, parts = [], pending = false, saver = null, inClaude = false;
+
+  /* ---------- reading the controls ---------- */
+  const style = () => document.querySelector('input[name=style]:checked').value;
+  const num = (id) => parseFloat($(id).value);
+  const tips = {
+    rect: 'Your drawing sits on a solid tag. It always prints in one piece.',
+    circle: 'Your drawing sits on a round tag. It always prints in one piece.',
+    cutout: 'The keychain is the shape of your drawing. Every part has to be joined together.'
+  };
+  function labels() {
+    const t = num('thr');
+    $('thrOut').textContent = t < 50 ? 'only dark lines' : t < 75 ? 'medium' : 'even faint lines';
+    $('boldOut').textContent = ['no', 'a little', 'some', 'more', 'a lot', 'the most'][num('bold')];
+    $('sizeOut').textContent = num('size') + ' mm';
+    $('thickOut').textContent = num('thick').toFixed(1) + ' mm';
+    $('holeDOut').textContent = num('holeD').toFixed(1) + ' mm';
+    const s = style();
+    $('styleTip').textContent = tips[s];
+    $('fillWrap').hidden = s !== 'cutout';
+    $('holeControls').style.display = $('holeOn').checked ? 'flex' : 'none';
+    $('toolPaint').setAttribute('aria-pressed', st.tool === 'paint');
+    $('toolHole').setAttribute('aria-pressed', st.tool === 'hole');
+  }
+  function setTool(t) { st.tool = t; labels(); drawTop(); }
+
+  /* ---------- colours ---------- */
+  function buildPalette() {
+    const box = $('slots'); box.textContent = '';
+    st.palette.forEach((c, n) => {
+      const lab = document.createElement('label'), inp = document.createElement('input'), sw = document.createElement('i');
+      inp.type = 'radio'; inp.name = 'slot'; inp.id = 'slot' + (n + 1); inp.value = n + 1; inp.checked = st.slot === n + 1;
+      inp.addEventListener('change', () => { st.slot = n + 1; setTool('paint'); });
+      sw.style.background = c;
+      lab.append(inp, sw, document.createTextNode('Colour ' + (n + 1)));
+      box.append(lab);
+    });
+  }
+  function buildChips() {
+    FILAMENTS.forEach(([nm, hex]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.style.background = hex; b.title = nm; b.setAttribute('aria-label', nm);
+      b.addEventListener('click', () => {
+        st.palette[st.slot - 1] = hex;
+        try { localStorage.setItem('keychain-palette', JSON.stringify(st.palette)); } catch (e) {}
+        buildPalette(); schedule();
+      });
+      $('chips').append(b);
+    });
+  }
+  const rgb = (hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+
+  /* ---------- loading and cropping a picture ---------- */
+  const cropC = $('crop'), cctx = cropC.getContext('2d');
+  function setSource(img) {
+    const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(8, Math.round(img.width * k)); c.height = Math.max(8, Math.round(img.height * k));
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+    st.src = c; st.crop = { x0: 0, y0: 0, x1: 1, y1: 1 };
+    cropC.width = 640; cropC.height = Math.round(640 * c.height / c.width);
+    $('loadMsg').textContent = '';
+    applyCrop();
+  }
+  function drawCrop() {
+    if (!st.src) return;
+    const W = cropC.width, H = cropC.height, r = st.crop;
+    cctx.drawImage(st.src, 0, 0, W, H);
+    const x = r.x0 * W, y = r.y0 * H, w = (r.x1 - r.x0) * W, h = (r.y1 - r.y0) * H;
+    cctx.fillStyle = 'rgba(24,38,58,0.6)';
+    cctx.fillRect(0, 0, W, y); cctx.fillRect(0, y + h, W, H - y - h); cctx.fillRect(0, y, x, h); cctx.fillRect(x + w, y, W - x - w, h);
+    cctx.strokeStyle = '#f26a1b'; cctx.lineWidth = 4; cctx.strokeRect(x + 2, y + 2, Math.max(0, w - 4), Math.max(0, h - 4));
+    cctx.fillStyle = '#f26a1b';
+    for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) cctx.fillRect(Math.max(0, Math.min(W - 22, px - 11)), Math.max(0, Math.min(H - 22, py - 11)), 22, 22);
+  }
+  function applyCrop() {
+    const s = st.src, r = st.crop;
+    const sx = Math.round(r.x0 * s.width), sy = Math.round(r.y0 * s.height);
+    const sw = Math.max(8, Math.round((r.x1 - r.x0) * s.width)), sh = Math.max(8, Math.round((r.y1 - r.y0) * s.height));
+    const k = Math.min(1, 320 / Math.max(sw, sh)), w = Math.max(8, Math.round(sw * k)), h = Math.max(8, Math.round(sh * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.imageSmoothingQuality = 'high'; x.drawImage(s, sx, sy, sw, sh, 0, 0, w, h);
+    st.D = Engine.analyze(x.getImageData(0, 0, w, h).data, w, h); st.dw = w; st.dh = h;
+    st.ver++; st.paint = []; st.loopSlot = 1; st.hole.auto = true;
+    drawCrop(); schedule();
+  }
+  let cdrag = null;
+  const cropPt = (e) => { const b = cropC.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)), y: Math.max(0, Math.min(1, (e.clientY - b.top) / b.height)) }; };
+  cropC.addEventListener('pointerdown', (e) => {
+    if (!st.src) return;
+    const p = cropPt(e), r = st.crop, near = 0.07;
+    let ax = p.x, ay = p.y;
+    for (const [cx, cy, ox, oy] of [[r.x0, r.y0, r.x1, r.y1], [r.x1, r.y0, r.x0, r.y1], [r.x0, r.y1, r.x1, r.y0], [r.x1, r.y1, r.x0, r.y0]])
+      if (Math.abs(p.x - cx) < near && Math.abs(p.y - cy) < near) { ax = ox; ay = oy; }
+    cdrag = { ax, ay, before: Object.assign({}, r) };
+    cropC.setPointerCapture(e.pointerId);
+  });
+  cropC.addEventListener('pointermove', (e) => {
+    if (!cdrag) return;
+    const p = cropPt(e);
+    st.crop = { x0: Math.min(cdrag.ax, p.x), y0: Math.min(cdrag.ay, p.y), x1: Math.max(cdrag.ax, p.x), y1: Math.max(cdrag.ay, p.y) };
+    drawCrop();
+  });
+  const cropEnd = () => {
+    if (!cdrag) return;
+    const r = st.crop;
+    if (r.x1 - r.x0 < 0.05 || r.y1 - r.y0 < 0.05) { st.crop = cdrag.before; cdrag = null; drawCrop(); return; }
+    cdrag = null; applyCrop();
+  };
+  cropC.addEventListener('pointerup', cropEnd);
+  cropC.addEventListener('pointercancel', cropEnd);
+
+  async function loadFile(file) {
+    if (!file) return;
+    try {
+      let img = null;
+      if (window.createImageBitmap) { try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { img = null; } }
+      if (!img) {
+        img = await new Promise((ok, bad) => {
+          const el = new Image(), url = URL.createObjectURL(file);
+          el.onload = () => { URL.revokeObjectURL(url); ok(el); };
+          el.onerror = () => { URL.revokeObjectURL(url); bad(new Error('decode')); };
+          el.src = url;
+        });
+      }
+      setSource(img);
+    } catch (e) { $('loadMsg').textContent = 'I could not open that picture. Try a JPG or PNG file.'; }
+  }
+  function sample() {
+    const c = document.createElement('canvas'); c.width = 800; c.height = 600;
+    const x = c.getContext('2d');
+    x.fillStyle = '#6b4a2f'; x.fillRect(0, 0, 800, 600);                         // desk around the paper
+    const g = x.createLinearGradient(60, 40, 740, 560);
+    g.addColorStop(0, '#f6f3ec'); g.addColorStop(1, '#cfcbc2');                   // paper with a shadow, like a real photo
+    x.fillStyle = g; x.fillRect(70, 30, 660, 540);
+    x.strokeStyle = '#1b1b22'; x.fillStyle = '#1b1b22'; x.lineJoin = 'round'; x.lineCap = 'round';
+    x.lineWidth = 20; x.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 105 : 225, a = -Math.PI / 2 + i * Math.PI / 5 + (i % 3 - 1) * 0.02;
+      x[i ? 'lineTo' : 'moveTo'](400 + r * Math.cos(a), 315 + r * Math.sin(a));
+    }
+    x.closePath(); x.stroke();
+    x.beginPath(); x.arc(365, 295, 13, 0, 7); x.arc(435, 295, 13, 0, 7); x.fill();
+    x.lineWidth = 12; x.beginPath(); x.arc(400, 318, 46, 0.25, Math.PI - 0.25); x.stroke();
+    setSource(c);
+    st.crop = { x0: 0.11, y0: 0.08, x1: 0.89, y1: 0.92 };   // the sample starts cropped to the paper
+    applyCrop();
+  }
+
+  /* ---------- rebuilding the model ---------- */
+  function schedule() { if (!pending) { pending = true; requestAnimationFrame(rebuild); } }
+  function repaint() {
+    regCol = new Uint8Array(body.nReg + 1);
+    for (let r = 1; r <= body.nReg; r++) regCol[r] = body.regCls[r] === 2 ? 2 : 1;
+    for (const a of st.paint) {
+      const i = Math.floor(body.ox + a.fx * body.cw), j = Math.floor(body.oy + a.fy * body.chh);
+      if (i < 0 || j < 0 || i >= body.W || j >= body.H) continue;
+      const r = body.reg[j * body.W + i];
+      if (r) regCol[r] = a.slot;
+    }
+  }
+  function rebuild() {
+    pending = false; labels();
+    if (!st.D) return;
+    const o = { D: st.D, dw: st.dw, dh: st.dh, style: style(), thr: num('thr') / 100, invert: $('invert').checked, bold: num('bold'), fill: $('fill').checked };
+    const key = [st.ver, o.style, o.thr, o.invert, o.bold, o.fill].join('|');
+    if (key !== bodyKey) { body = Engine.buildBody(o); bodyKey = key; if (!body.empty) repaint(); }
+    const T = num('thick');
+    grid = Engine.layout(body, { on: $('holeOn').checked, dMM: num('holeD'), auto: st.hole.auto, u: st.hole.u, v: st.hole.v }, { regCol, loopSlot: st.loopSlot }, num('size'));
+    if (grid.hole) { st.hole.u = grid.hole.u; st.hole.v = grid.hole.v; }
+    parts = grid.empty ? [] : [grid.back].concat(grid.used.filter((k) => k !== grid.back)).map((k) => Engine.buildPart(grid, k, T));
+    report(); drawTop(); upload3D(); draw3D();
+  }
+  function report() {
+    const w = [];
+    if (grid.empty) {
+      w.push('I can’t find a drawing in this picture. Slide “Pick up lighter lines” to the right, change your crop box, or try another picture.');
+      for (const id of ['sWide', 'sTall', 'sThick', 'sCols']) $(id).textContent = '--';
+    } else {
+      $('sWide').textContent = grid.dims.w.toFixed(0);
+      $('sTall').textContent = grid.dims.h.toFixed(0);
+      $('sThick').textContent = num('thick').toFixed(1);
+      $('sCols').textContent = parts.length;
+      if (body.loose > 0) w.push('I left out ' + body.loose + (body.loose === 1 ? ' loose bit that was' : ' loose bits that were') + ' not joined to your shape. Try “Make lines thicker” to join them, or pick a tag style.');
+      if (grid.pieces > 1) w.push('Your keychain is in ' + grid.pieces + ' pieces. Move the hole until its loop touches your shape.');
+    }
+    $('warn').textContent = w.join(' ');
+    $('dl3mf').disabled = $('dlstl').disabled = grid.empty || (inClaude && !saver);
+    $('saved').textContent = '';
+  }
+
+  /* ---------- top view ---------- */
+  const top = $('top'), tctx = top.getContext('2d');
+  const off = document.createElement('canvas');
+  let view = null;
+  function fit(c) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1), s = Math.max(50, Math.round(c.clientWidth * dpr));
+    if (c.width !== s || c.height !== s) { c.width = s; c.height = s; }
+    return s;
+  }
+  function drawTop() {
+    const S = fit(top);
+    tctx.fillStyle = '#1d2b3f'; tctx.fillRect(0, 0, S, S);
+    if (!grid || grid.empty) { view = null; return; }
+    const { W, H, cell, col } = grid, b = grid.body;
+    const vx = Engine.P - Engine.VIEW, vy = vx, vw = b.bw + 2 * Engine.VIEW, vh = b.bh + 2 * Engine.VIEW;
+    const sc = S / Math.max(vw, vh), ox = (S - vw * sc) / 2, oy = (S - vh * sc) / 2;
+    view = { vx, vy, sc, ox, oy };
+    const step = 10 / cell * sc;   // millimetre grid, like a printer bed
+    tctx.strokeStyle = '#33465f'; tctx.lineWidth = 1; tctx.beginPath();
+    for (let x = S / 2 % step; x < S; x += step) { tctx.moveTo(Math.round(x) + 0.5, 0); tctx.lineTo(Math.round(x) + 0.5, S); }
+    for (let y = S / 2 % step; y < S; y += step) { tctx.moveTo(0, Math.round(y) + 0.5); tctx.lineTo(S, Math.round(y) + 0.5); }
+    tctx.stroke();
+    off.width = W; off.height = H;
+    const octx = off.getContext('2d'), im = octx.createImageData(W, H), d = im.data, pal = [null].concat(st.palette.map(rgb));
+    for (let i = 0; i < col.length; i++) {
+      const c = col[i]; if (!c) continue;
+      const q = i * 4, p = pal[c];
+      d[q] = p[0]; d[q + 1] = p[1]; d[q + 2] = p[2]; d[q + 3] = 255;
+    }
+    octx.putImageData(im, 0, 0);
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(off, vx, vy, vw, vh, ox, oy, vw * sc, vh * sc);
+    if (grid.hole && st.tool === 'hole') {
+      const h = grid.hole, px = ox + (h.cx - vx) * sc, py = oy + (h.cy - vy) * sc;
+      tctx.lineWidth = Math.max(2, S / 220); tctx.strokeStyle = '#19d3cc';
+      tctx.beginPath(); tctx.arc(px, py, h.rIn * sc, 0, 7); tctx.stroke();
+      tctx.setLineDash([S / 90, S / 90]);
+      tctx.beginPath(); tctx.arc(px, py, h.rOut * sc + tctx.lineWidth, 0, 7); tctx.stroke();
+      tctx.setLineDash([]);
+    }
+    top.style.cursor = st.tool === 'hole' ? 'move' : 'crosshair';
+  }
+  function cellAt(e) {
+    const r = top.getBoundingClientRect(), k = top.width / r.width;
+    return { gx: ((e.clientX - r.left) * k - view.ox) / view.sc + view.vx, gy: ((e.clientY - r.top) * k - view.oy) / view.sc + view.vy };
+  }
+  function moveHole(e) {
+    if (!view || !$('holeOn').checked) return;
+    const p = cellAt(e), b = grid.body;
+    st.hole.auto = false;
+    st.hole.u = (p.gx - (Engine.P + b.bw / 2)) / Engine.N;
+    st.hole.v = (p.gy - (Engine.P + b.bh / 2)) / Engine.N;
+    schedule();
+  }
+  function paintAt(e) {
+    if (!view) return;
+    const p = cellAt(e), i = Math.floor(p.gx), j = Math.floor(p.gy);
+    if (i < 0 || j < 0 || i >= body.W || j >= body.H) return;
+    const q = j * body.W + i;
+    if (body.reg[q]) {
+      regCol[body.reg[q]] = st.slot;
+      st.paint.push({ fx: (p.gx - body.ox) / body.cw, fy: (p.gy - body.oy) / body.chh, slot: st.slot });
+      if (st.paint.length > 400) st.paint.shift();
+    } else if (grid.col[q]) st.loopSlot = st.slot;
+    else return;
+    schedule();
+  }
+  let dragging = false;
+  top.addEventListener('pointerdown', (e) => {
+    if (st.tool === 'hole') { dragging = true; top.setPointerCapture(e.pointerId); moveHole(e); } else paintAt(e);
+  });
+  top.addEventListener('pointermove', (e) => { if (dragging) moveHole(e); });
+  top.addEventListener('pointerup', () => { dragging = false; });
+  top.addEventListener('pointercancel', () => { dragging = false; });
+  top.addEventListener('keydown', (e) => {
+    const m = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!m || st.tool !== 'hole' || !grid || !grid.hole) return;
+    e.preventDefault();
+    st.hole.auto = false; st.hole.u += m[0] * 2 / Engine.N; st.hole.v += m[1] * 2 / Engine.N;
+    schedule();
+  });
+
+  /* ---------- 3D view ---------- */
+  const spin = $('spin');
+  let gl = null, prog = null, bufP = null, bufN = null, bufC = null, nVerts = 0, yaw = -0.45, tilt = -0.95, radius = 1, zMid = 0;
+  function initGL() {
+    try { gl = spin.getContext('webgl', { antialias: true, alpha: true }); } catch (e) { gl = null; }
+    if (!gl) { spin.hidden = true; $('noGL').hidden = false; return; }
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER,
+      'attribute vec3 aPos;attribute vec3 aNor;attribute vec3 aCol;uniform float uYaw,uTilt,uScale,uZ;varying vec3 vN;varying vec3 vC;' +
+      'vec3 rot(vec3 p){float c=cos(uYaw),s=sin(uYaw);p=vec3(p.x*c-p.y*s,p.x*s+p.y*c,p.z);c=cos(uTilt);s=sin(uTilt);return vec3(p.x,p.y*c-p.z*s,p.y*s+p.z*c);}' +
+      'void main(){vec3 p=rot((aPos-vec3(0.,0.,uZ))*uScale);vN=rot(aNor);vC=aCol;gl_Position=vec4(p.xy,-p.z*0.5,1.);}'));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER,
+      'precision mediump float;varying vec3 vN;varying vec3 vC;void main(){vec3 n=normalize(vN);' +
+      'float d=max(dot(n,normalize(vec3(.35,.55,.76))),0.);float f=max(dot(n,normalize(vec3(-.7,-.3,.45))),0.);' +
+      'gl_FragColor=vec4((vC*.9+.05)*(.42+.58*d+.18*f),1.);}'));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { gl = null; spin.hidden = true; $('noGL').hidden = false; return; }
+    bufP = gl.createBuffer(); bufN = gl.createBuffer(); bufC = gl.createBuffer();
+  }
+  function upload3D() {
+    if (!gl) return;
+    let n = 0; for (const p of parts) n += p.idx.length;
+    nVerts = n;
+    if (!n) return;
+    const P = new Float32Array(n * 3), Nn = new Float32Array(n * 3), C = new Float32Array(n * 3);
+    let o = 0;
+    for (const p of parts) {
+      const v = p.verts, ix = p.idx, c = rgb(st.palette[p.slot - 1]).map((x) => x / 255);
+      for (let t = 0; t < ix.length; t += 3) {
+        const a = ix[t] * 3, b = ix[t + 1] * 3, d = ix[t + 2] * 3;
+        const ux = v[b] - v[a], uy = v[b + 1] - v[a + 1], uz = v[b + 2] - v[a + 2], wx = v[d] - v[a], wy = v[d + 1] - v[a + 1], wz = v[d + 2] - v[a + 2];
+        const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx, len = Math.hypot(nx, ny, nz) || 1;
+        for (const q of [a, b, d]) {
+          P[o] = v[q]; P[o + 1] = v[q + 1]; P[o + 2] = v[q + 2];
+          Nn[o] = nx / len; Nn[o + 1] = ny / len; Nn[o + 2] = nz / len;
+          C[o] = c[0]; C[o + 1] = c[1]; C[o + 2] = c[2]; o += 3;
+        }
+      }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufP); gl.bufferData(gl.ARRAY_BUFFER, P, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufN); gl.bufferData(gl.ARRAY_BUFFER, Nn, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufC); gl.bufferData(gl.ARRAY_BUFFER, C, gl.DYNAMIC_DRAW);
+    const T = num('thick');
+    radius = Math.hypot(grid.dims.w, grid.dims.h, T) / 2; zMid = T / 2;
+  }
+  function draw3D() {
+    if (!gl) return;
+    const S = fit(spin);
+    gl.viewport(0, 0, S, S);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (!nVerts) return;
+    gl.enable(gl.DEPTH_TEST);
+    gl.useProgram(prog);
+    for (const [name, buf] of [['aPos', bufP], ['aNor', bufN], ['aCol', bufC]]) {
+      const loc = gl.getAttribLocation(prog, name);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0);
+    }
+    gl.uniform1f(gl.getUniformLocation(prog, 'uYaw'), yaw);
+    gl.uniform1f(gl.getUniformLocation(prog, 'uTilt'), tilt);
+    gl.uniform1f(gl.getUniformLocation(prog, 'uScale'), 0.9 / radius);
+    gl.uniform1f(gl.getUniformLocation(prog, 'uZ'), zMid);
+    gl.drawArrays(gl.TRIANGLES, 0, nVerts);
+  }
+  let rot = null;
+  spin.addEventListener('pointerdown', (e) => { rot = { x: e.clientX, y: e.clientY }; spin.setPointerCapture(e.pointerId); });
+  spin.addEventListener('pointermove', (e) => {
+    if (!rot) return;
+    yaw += (e.clientX - rot.x) * 0.01;
+    tilt = Math.max(-3.0, Math.min(0.1, tilt + (e.clientY - rot.y) * 0.01));
+    rot = { x: e.clientX, y: e.clientY };
+    requestAnimationFrame(draw3D);
+  });
+  spin.addEventListener('pointerup', () => { rot = null; });
+  spin.addEventListener('pointercancel', () => { rot = null; });
+
+  /* ---------- downloads ---------- */
+  function fileName() {
+    const n = $('name').value.trim().replace(/[^A-Za-z0-9 _-]+/g, '').replace(/\s+/g, '-').slice(0, 40);
+    return n || 'my-keychain';
+  }
+  async function download(kind) {
+    if (!parts.length) return;
+    const name = fileName(), T = num('thick'), flipped = parts.map((p) => Engine.faceDown(p, T));
+    $('saved').textContent = 'Making your file...';
+    try {
+      let bytes;
+      if (kind === '3mf') {
+        const names = [''].concat(st.palette.map((hex, n) => 'Colour ' + (n + 1) + ' ' + (FILAMENTS.find((f) => f[1] === hex) || ['', ''])[0]).map((s) => s.trim()));
+        bytes = await Engine.zip(Engine.threeMF(flipped, name, names));
+      } else bytes = Engine.toSTL(flipped, name);
+      const file = name + '.' + kind;
+      if (saver) {
+        // Inside Claude a page can only save a few file types, so the file travels inside a zip.
+        await saver.save({ filename: name + '-' + kind + '.zip', data: new Blob([await Engine.zip([{ name: file, bytes }])]) });
+        $('saved').textContent = 'Saved ' + name + '-' + kind + '.zip. Double-click it to get ' + file + '.';
+      } else {
+        const url = URL.createObjectURL(new Blob([bytes], { type: kind === '3mf' ? 'model/3mf' : 'model/stl' }));
+        const a = document.createElement('a'); a.href = url; a.download = file;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        $('saved').textContent = 'Saved ' + file + '. Look in your Downloads folder.';
+      }
+    } catch (e) { $('saved').textContent = e && e.code === 'declined' ? '' : 'The file did not save. Try again.'; }
+  }
+
+  /* ---------- wiring ---------- */
+  ['thr', 'bold', 'size', 'thick', 'holeD'].forEach((id) => $(id).addEventListener('input', schedule));
+  ['fill', 'invert', 'holeOn'].forEach((id) => $(id).addEventListener('change', schedule));
+  document.querySelectorAll('input[name=style]').forEach((r) => r.addEventListener('change', () => { st.hole.auto = true; st.paint = []; st.loopSlot = 1; bodyKey = ''; schedule(); }));
+  $('holeReset').addEventListener('click', () => { st.hole.auto = true; setTool('hole'); schedule(); });
+  $('holeTool').addEventListener('click', () => setTool('hole'));
+  $('toolHole').addEventListener('click', () => setTool('hole'));
+  $('toolPaint').addEventListener('click', () => setTool('paint'));
+  $('paintReset').addEventListener('click', () => { st.paint = []; st.loopSlot = 1; if (body && !body.empty) repaint(); schedule(); });
+  $('sample').addEventListener('click', sample);
+  $('cropReset').addEventListener('click', () => { if (st.src) { st.crop = { x0: 0, y0: 0, x1: 1, y1: 1 }; applyCrop(); } });
+  $('file').addEventListener('change', (e) => { loadFile(e.target.files[0]); e.target.value = ''; });
+  $('dl3mf').addEventListener('click', () => download('3mf'));
+  $('dlstl').addEventListener('click', () => download('stl'));
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) loadFile(f); });
+  window.addEventListener('paste', (e) => {
+    const f = e.clipboardData && [...e.clipboardData.files].find((x) => x.type.startsWith('image/'));
+    if (f) loadFile(f);
+  });
+  if (window.ResizeObserver) new ResizeObserver(() => { drawTop(); draw3D(); }).observe(top);
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    inClaude = true;
+    window.claude.use('downloads').then((d) => {
+      saver = d;
+      if (d) { $('dl3mf').textContent = 'Download 3MF (zipped)'; $('dlstl').textContent = 'Download STL (zipped)'; }
+      else $('saved').textContent = 'Downloading is turned off in this view.';
+      if (grid) report();
+    });
+  }
+  buildPalette(); buildChips(); initGL(); labels(); sample();
+})();
+</script>
+</body>
+</html>
